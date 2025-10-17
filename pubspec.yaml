@@ -1,0 +1,28 @@
+name: mi_app_iot
+description: App IoT con login real
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.2.2
+  google_sign_in: ^6.2.1
+  flutter_facebook_auth: ^6.0.2
+  uuid: ^3.0.7
+  mailer: ^6.0.1
+  mqtt_client: ^10.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/google.png
+    - assets/facebook.png
+    - assets/logo.svg
+
+dependency_overrides:
+  web:
+    path: ./stubs/web
