@@ -1,5 +1,4 @@
 import 'device_action.dart';
-import 'package:flutter/material.dart';
 
 enum DeviceType {
   accessControl,
@@ -14,17 +13,6 @@ enum DeviceType {
         return DeviceTypeTemplates.lightActions;
       case DeviceType.custom:
         return DeviceTypeTemplates.customActions;
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case DeviceType.accessControl:
-        return Icons.lock_outline;
-      case DeviceType.lightSwitch:
-        return Icons.lightbulb_outline;
-      case DeviceType.custom:
-        return Icons.device_unknown;
     }
   }
 }

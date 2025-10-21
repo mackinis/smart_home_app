@@ -2,51 +2,64 @@ import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import '../models/device.dart';
 import '../widgets/action_button.dart';
+// 2️⃣ Quitamos: import 'dart:io';
 import '../models/device_type.dart';
+import '../services/mqtt_wrapper.dart';
 
 class DeviceCardScreen extends StatefulWidget {
   final Device device;
-  final MqttClient client;          // <-- NUEVO
-  const DeviceCardScreen({super.key, required this.device, required this.client});
+  const DeviceCardScreen({super.key, required this.device});
 
   @override
   State<DeviceCardScreen> createState() => _DeviceCardScreenState();
 }
 
 class _DeviceCardScreenState extends State<DeviceCardScreen> {
+  late MqttClient client;   // 3️⃣
   bool _connected = false;
   String _lastResponse = '';
 
   @override
   void initState() {
     super.initState();
-    _setupMqtt();
+    _connect();
   }
 
-  void _setupMqtt() {
-    final c = widget.client;
-    if (c.connectionStatus?.state == MqttConnectionState.connected) {
-      _connected = true;
-      _subscribe();
-    } else {
-      // si aún no está conectado esperamos a que lo esté
-      c.onConnected = () {
-        if (mounted) setState(() => _connected = true);
-        _subscribe();
-      };
+  Future<void> _connect() async {
+    final d = widget.device;
+
+    // 4️⃣ URI WebSocket (wss si es seguro)
+    client = buildMqttClient(d.broker, d.port, 'flutter_${d.id}');
+
+    client.port = d.port;
+    client.logging(on: false);
+    client.onConnected = () => setState(() => _connected = true);
+    client.onDisconnected = () => setState(() => _connected = false);
+
+    final connMess = MqttConnectMessage()
+        .withClientIdentifier('flutter_${d.id}')
+        .startClean()
+        .authenticateAs(d.username, d.password);
+    client.connectionMessage = connMess;
+
+    // 6️⃣ Quitamos SecurityContext
+
+    try {
+      await client.connect();
+    } catch (e) {
+      print('>>> ERROR MQTT: $e');
+      client.disconnect();
     }
-    c.onDisconnected = () {
-      if (mounted) setState(() => _connected = false);
-    };
-  }
 
-  void _subscribe() {
-    widget.client.subscribe(widget.device.topicStatus, MqttQos.atLeastOnce);
-    widget.client.updates!.listen((List<MqttReceivedMessage<MqttMessage?>>? msgs) {
-      final msg = msgs![0].payload as MqttPublishMessage;
-      final payload = MqttPublishPayload.bytesToStringAsString(msg.payload.message);
-      if (mounted) setState(() => _lastResponse = _extractNatural(payload));
-    });
+    if (client.connectionStatus!.state == MqttConnectionState.connected) {
+      client.subscribe(d.topicStatus, MqttQos.atLeastOnce);
+      client.updates!.listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
+        final recMess = c![0].payload as MqttPublishMessage;
+        final pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+        final natural = _extractNatural(pt);
+        setState(() => _lastResponse = natural);
+      });
+    }
   }
 
   String _extractNatural(String raw) {
@@ -64,20 +77,26 @@ class _DeviceCardScreenState extends State<DeviceCardScreen> {
 
   Map<String, dynamic> _jsonDecode(String src) {
     final m = <String, dynamic>{};
-    RegExp(r'"(\w+)":"([^"]*)"').allMatches(src).forEach((m2) {
-      m[m2.group(1)!] = m2.group(2)!;
-    });
+    final reg = RegExp(r'"(\w+)":"([^"]*)"');
+    for (final match in reg.allMatches(src)) {
+      m[match.group(1)!] = match.group(2)!;
+    }
     return m;
   }
 
   void _sendCommand(String cmd) {
     final builder = MqttClientPayloadBuilder();
     builder.addString(cmd);
-    widget.client.publishMessage(
-        widget.device.topicCmd, MqttQos.atLeastOnce, builder.payload!);
+    client.publishMessage(widget.device.topicCmd, MqttQos.atLeastOnce, builder.payload!);
   }
 
   void _fetchInfo() => _sendCommand('info');
+
+  @override
+  void dispose() {
+    client.disconnect();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -120,10 +139,10 @@ class _DeviceCardScreenState extends State<DeviceCardScreen> {
                 childAspectRatio: 2.2,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                children: (widget.device.actions)
+                children: (widget.device.actions ?? DeviceType.accessControl.actions)
                     .map((action) => ActionButton(
                           action: action,
-                          onExecute: _sendCommand,
+                          onExecute: (cmd) => _sendCommand(cmd),
                           enabled: _connected,
                         ))
                     .toList(),

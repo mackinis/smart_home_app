@@ -12,7 +12,6 @@ class Device {
   String topicCmd;
   String topicStatus;
   final DeviceType type;
-  bool status;                 // <-- agregado
 
   Device({
     required this.id,
@@ -25,7 +24,6 @@ class Device {
     required this.topicCmd,
     required this.topicStatus,
     this.type = DeviceType.accessControl,
-    this.status = false,       // <-- agregado
   });
 
   List<DeviceAction> get actions => type.actions;
@@ -41,7 +39,6 @@ class Device {
         'topicCmd': topicCmd,
         'topicStatus': topicStatus,
         'type': type.name,
-        'status': status,       // <-- agregado
       };
 
   factory Device.fromJson(Map<String, dynamic> j) => Device(
@@ -55,6 +52,5 @@ class Device {
         topicCmd: j['topicCmd'],
         topicStatus: j['topicStatus'],
         type: DeviceType.values.byName(j['type']),
-        status: j['status'] ?? false, // <-- agregado
       );
 }

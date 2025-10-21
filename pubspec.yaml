@@ -21,7 +21,7 @@ flutter:
   assets:
     - assets/google.png
     - assets/facebook.png
-    - assets/logo.svg
+    - assets/logo.png
 
 dependency_overrides:
   web:
